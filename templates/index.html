@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Создание приказа</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <!-- Левая панель со списком приказов -->
+        <div class="leftbar">
+            <h3>Список приказов</h3>
+            <ul id="ordersList">
+                <!-- Приказы будут загружены здесь -->
+            </ul>
+        </div>
+
+        <!-- Правая панель со списком всех ФИО -->
+        <div class="rightbar">
+            <h3>Список ФИО</h3>
+            <button onclick="loadFIOList('ASC')">По возрастанию</button>
+            <button onclick="loadFIOList('DESC')">По убыванию</button>
+            <ul id="fioList">
+                <!-- Список всех ФИО из базы -->
+            </ul>
+        </div>
+
+
+        <!-- Основная форма для создания приказов -->
+        <div class="main-content">
+            <h1>Создание приказа</h1>
+
+            <!-- Форма для загрузки шаблона -->
+            <form id="templateForm" enctype="multipart/form-data">
+                <label for="templateFile">Загрузить шаблон:</label>
+                <input type="file" id="templateFile" name="templateFile">
+                <button type="submit">Загрузить шаблон</button>
+            </form>
+
+            <form id="orderForm">
+                <div id="dynamicTemplate">
+                    <!-- Сюда будут динамически загружаться поля на основе шаблона -->
+                </div>
+                <button type="submit">Сохранить приказ</button>
+            </form>
+
+            <!-- Кнопка для формирования общего документа -->
+            <button id="generateDocumentBtn">Сформировать общий документ</button>
+            <pre id="documentContent"></pre>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+</body>
+</html>
