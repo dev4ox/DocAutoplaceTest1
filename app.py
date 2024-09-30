@@ -1,8 +1,9 @@
 from flask import Flask, render_template, request, send_file, redirect, url_for
 from docx import Document
 import io
-from data import fios_list  # Импорт базового списка ФИО из data.py
 from flask_sqlalchemy import SQLAlchemy
+
+import doc_template
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///docautoplace.sqlite3'
@@ -132,8 +133,7 @@ def index():
         }
 
         # Сохраняем приказ в базу данных
-        text_order = f"Приказ № 7-{order_number} от {order_date}г. " \
-                     f"Приказ о привлечении к работе: {employees} {job_date}г."
+        text_order = doc_template.template(order_number, order_date, employees, job_date)
         order_number = float(order_number)
         new_order = Order(order_id=int(order_number*10), text=text_order)
         db.session.add(new_order)
@@ -147,10 +147,10 @@ def index():
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-        # Проверяем, если база данных пуста, добавляем базовый список ФИО
-        if Client.query.count() == 0:
-            for fio in fios_list:
-                client = Client(fio=fio)
-                db.session.add(client)
-            db.session.commit()
-    app.run(debug=True)
+        # # Проверяем, если база данных пуста, добавляем базовый список ФИО
+        # if Client.query.count() == 0:
+        #     for fio in fios_list:
+        #         client = Client(fio=fio)
+        #         db.session.add(client)
+        #     db.session.commit()
+    app.run()

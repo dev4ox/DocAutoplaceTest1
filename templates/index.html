@@ -20,8 +20,8 @@
             overflow-y: auto;
             overflow-x: hidden;
         }
-        .ui-menu-item-wrapper.ui-state-active {
-            background-color: #b3e5fc; /* Светло-голубой цвет */
+        .ui-menu-item {
+            background-color: #999;
         }
         .sidebar {
             position: fixed;
@@ -32,6 +32,9 @@
             background-color: #bbb;
             padding: 20px;
             overflow-y: auto;
+        }
+        .sidebar h4, .sidebar .btn-block {
+            margin-bottom: 15px;
         }
         .content {
             margin-right: 520px;
@@ -56,7 +59,7 @@
                 </div>
                 <div class="form-group">
                     <label for="employees_input">Работники (начните вводить ФИО, разделяйте запятыми):</label>
-                    <input type="text" class="form-control" id="employees_input" name="employees_input" required placeholder="Пример: Иванов И.И., Сидоров А.А.">
+                    <textarea class="form-control" id="employees_input" name="employees_input" required placeholder="Пример: Иванов И.И., Сидоров А.А." rows="8"></textarea>
                 </div>
                 <div class="form-group">
                     <label for="job_date">Дата 2:</label>
@@ -71,10 +74,12 @@
         <h4>Навигация</h4>
         <ul class="nav flex-column">
             <li class="nav-item">
-                <a class="btn btn-primary" href="/orders_list">Приказы</a>
+                <a class="btn btn-primary btn-block" href="/orders_list">Приказы</a>
             </li>
         </ul>
         <h4>Список ФИО</h4>
+        <a href="/add_client" class="btn btn-primary btn-block">Добавить ФИО</a>
+        <br>
         <ul class="list-group">
             {% for fio in fios %}
             <li class="list-group-item d-flex justify-content-between align-items-center">
@@ -86,8 +91,6 @@
             </li>
             {% endfor %}
         </ul>
-        <br>
-        <a href="/add_client" class="btn btn-primary btn-block">Добавить ФИО</a>
     </div>
 
     <script>
