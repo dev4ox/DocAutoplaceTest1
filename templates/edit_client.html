@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Редактировать пользователя</title>
+    <!-- Подключаем CSS для стиля -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <!-- Подключаем jQuery и jQuery UI для автодополнения -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.0/themes/smoothness/jquery-ui.css">
+    <script src="https://code.jquery.com/ui/1.13.0/jquery-ui.min.js"></script>
+    <style>
+        body {
+        margin: 20px;
+        }
+        .ui-autocomplete {
+            max-height: 200px;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        .ui-menu-item-wrapper.ui-state-active {
+            background-color: #b3e5fc; /* Светло-голубой цвет */
+        }
+        .sidebar {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 250px;
+            height: 100%;
+            background-color: #f8f9fa;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .content {
+            margin-right: 270px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Редактировать ФИО</h1>
+        <form method="post">
+            <div class="form-group">
+                <label for="fio">ФИО:</label>
+                <input type="text" class="form-control" id="fio" name="fio" value="{{ client.fio }}" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Сохранить</button>
+            <a href="{{ url_for('index') }}" class="btn btn-secondary">Отмена</a>
+        </form>
+    </div>
+</body>
+</html>

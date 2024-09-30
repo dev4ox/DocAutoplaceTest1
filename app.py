@@ -1,127 +1,156 @@
-from flask import Flask, render_template, request, jsonify
-from db_handler import DBHandler
-from template_handler import TemplateHandler
-import os
+from flask import Flask, render_template, request, send_file, redirect, url_for
+from docx import Document
+import io
+from data import fios_list  # Импорт базового списка ФИО из data.py
+from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
-db = DBHandler()
-template_handler = TemplateHandler()
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///docautoplace.sqlite3'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+db = SQLAlchemy(app)
 
 
-@app.route('/')
-def index():
-    return render_template('index.html')
+# Модель для таблицы clients
+class Client(db.Model):
+    __tablename__ = 'clients'
+    user_id = db.Column(db.Integer, primary_key=True)
+    fio = db.Column(db.String, nullable=False)
+
+    def __repr__(self):
+        return f'<Client {self.fio}>'
 
 
-@app.route('/load_template', methods=['POST'])
-def load_template():
-    if 'templateFile' not in request.files:
-        return jsonify({'success': False, 'message': 'Файл не загружен'})
-
-    template_file = request.files['templateFile']
-    template_content = template_file.read().decode('utf-8')
-
-    try:
-        # Генерация HTML для шаблона
-        template_html = template_handler.generate_html_from_template(template_content)
-        return jsonify({'success': True, 'template_html': template_html})
-    except Exception as e:
-        return jsonify({'success': False, 'message': str(e)})
+# Модель для таблицы orders
+class Order(db.Model):
+    __tablename__ = 'orders'
+    order_id = db.Column(db.Integer, primary_key=True)
+    text = db.Column(db.Text, nullable=False)  # Текст приказа
 
 
-@app.route('/add_client', methods=['POST'])
+# Добавление нового клиента
+@app.route('/add_client', methods=['GET', 'POST'])
 def add_client():
-    full_name = request.form['full_name']
-    if db.add_client(full_name):
-        return jsonify({'success': True, 'client': full_name})
-    return jsonify({'success': False, 'message': 'Ошибка при добавлении клиента'})
+    if request.method == 'POST':
+        fio = request.form['fio']
+        if fio:
+            new_client = Client(fio=fio)
+            db.session.add(new_client)
+            db.session.commit()
+            return redirect(url_for('index'))
+    return render_template('add_client.html')
 
 
-@app.route('/save_order', methods=['POST'])
-def save_order():
-    # Получение данных из формы для сохранения приказа
-    custom_inputs = request.form.getlist('custom_input')
-    client_inputs = request.form.getlist('client_input')
-
-    # Формирование текста приказа на основе шаблона
-    order_text = template_handler.create_order_text(custom_inputs, client_inputs)
-
-    # Сохранение приказа в базе данных
-    db.save_order(order_text)
-
-    return jsonify({'success': True})
+# Редактирование клиента
+@app.route('/edit_client/<int:user_id>', methods=['GET', 'POST'])
+def edit_client(user_id):
+    client = Client.query.get_or_404(user_id)
+    if request.method == 'POST':
+        fio = request.form['fio']
+        if fio:
+            client.fio = fio
+            db.session.commit()
+            return redirect(url_for('index'))
+    return render_template('edit_client.html', client=client)
 
 
-@app.route('/get_orders')
-def get_orders():
-    orders = db.get_all_orders()
-    return jsonify({'orders': orders})
+# Удаление клиента
+@app.route('/delete_client/<int:user_id>')
+def delete_client(user_id):
+    client = Client.query.get_or_404(user_id)
+    db.session.delete(client)
+    db.session.commit()
+    return redirect(url_for('index'))
 
 
-@app.route('/get_fio_list')
-def get_fio_list():
-    fio_list = db.get_clients()
-    return jsonify({'fio': fio_list})
+# Просмотр списка приказов
+@app.route('/orders_list', methods=['GET'])
+def orders_list():
+    # Загружаем все приказы
+    orders = Order.query.order_by(Order.order_id).all()
+    return render_template('orders_list.html', orders=orders)
 
 
-@app.route('/edit_order', methods=['POST'])
-def edit_order():
-    order_id = request.form['id']
-    new_text = request.form['text']
-    success = db.update_order(order_id, new_text)
-    if success:
-        return jsonify({'success': True})
-    return jsonify({'success': False, 'message': 'Ошибка при редактировании приказа'})
+# Удаление отдельного приказа
+@app.route('/delete_order/<int:order_id>')
+def delete_order(order_id):
+    # Удаление приказа по его ID
+    order = Order.query.get_or_404(order_id)
+    db.session.delete(order)
+    db.session.commit()
+    return redirect(url_for('orders_list'))
 
 
-@app.route('/delete_order', methods=['POST'])
-def delete_order():
-    order_id = request.form['id']
-    success = db.delete_order(order_id)
-    if success:
-        return jsonify({'success': True})
-    return jsonify({'success': False, 'message': 'Ошибка при удалении приказа'})
+# Генерация общего документа
+@app.route('/generate_all_orders_docx')
+def generate_all_orders_docx():
+    # Получаем все приказы
+    orders = Order.query.order_by(Order.order_id).all()
+
+    # Создаем новый документ
+    doc = Document()
+
+    # Перебираем все приказы и добавляем каждый в новый документ
+    for order in orders:
+        doc.add_paragraph(order.text)
+
+    # Сохраняем документ в памяти
+    byte_io = io.BytesIO()
+    doc.save(byte_io)
+    byte_io.seek(0)
+
+    # Отправляем документ пользователю для скачивания
+    filename = "Список_приказов.docx"
+    return send_file(
+        byte_io,
+        as_attachment=True,
+        download_name=filename,
+        mimetype='application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    )
 
 
-@app.route('/edit_fio', methods=['POST'])
-def edit_fio():
-    old_fio = request.form['old_fio']
-    new_fio = request.form['new_fio']
-    success = db.update_fio(old_fio, new_fio)
-    if success:
-        return jsonify({'success': True})
-    return jsonify({'success': False, 'message': 'Ошибка при редактировании ФИО'})
+@app.route('/', methods=['GET', 'POST'])
+def index():
+    if request.method == 'POST':
+        # Получаем данные из формы
+        order_number = request.form['order_number']
+        order_date = request.form['order_date']
+        employees_input = request.form['employees_input']
+        job_date = request.form['job_date']
+
+        # Преобразуем введенные ФИО в список и удаляем возможные лишние пробелы
+        employees_list = [emp.strip() for emp in employees_input.split(',') if emp.strip()]
+        employees = ', '.join(employees_list)
 
 
-@app.route('/delete_fio', methods=['POST'])
-def delete_fio():
-    fio = request.form['fio']
-    success = db.delete_fio(fio)
-    if success:
-        return jsonify({'success': True})
-    return jsonify({'success': False, 'message': 'Ошибка при удалении ФИО'})
+        # Создаем контекст для замены плейсхолдеров
+        context = {
+            'order_number': order_number,
+            'order_date': order_date,
+            'employees': employees,
+            'job_date': job_date
+        }
+
+        # Сохраняем приказ в базу данных
+        text_order = f"Приказ № 7-{order_number} от {order_date}г. " \
+                     f"Приказ о привлечении к работе: {employees} {job_date}г."
+        order_number = float(order_number)
+        new_order = Order(order_id=int(order_number*10), text=text_order)
+        db.session.add(new_order)
+        db.session.commit()
+    clients = Client.query.order_by(Client.fio).all()
+    fios = [client.fio for client in clients]
+    return render_template('index.html', fios=fios, clients=clients)
 
 
-@app.route('/generate_document')
-def generate_document():
-    orders = db.get_all_orders_desc()
-    return jsonify({'document': '\n\n'.join(orders)})
-
-
-@app.route('/suggest_fio')
-def suggest_fio():
-    query = request.args.get('query', '').strip().lower()  # Получаем строку запроса
-    suggestions = db.search_clients(query)
-    return jsonify({'success': True, 'suggestions': suggestions})
-
-
-@app.route('/get_fio_list_sorted')
-def get_fio_list_sorted():
-    order = request.args.get('order', 'ASC')  # Получаем параметр сортировки
-    fio_list = db.get_clients_sorted(order)
-    return jsonify({'fio': fio_list})
-
-
-
+# Запуск приложения и инициализация базы данных
 if __name__ == '__main__':
+    with app.app_context():
+        db.create_all()
+        # Проверяем, если база данных пуста, добавляем базовый список ФИО
+        if Client.query.count() == 0:
+            for fio in fios_list:
+                client = Client(fio=fio)
+                db.session.add(client)
+            db.session.commit()
     app.run(debug=True)

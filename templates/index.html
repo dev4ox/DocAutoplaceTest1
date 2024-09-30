@@ -1,56 +1,144 @@
+<!-- templates/index.html -->
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Создание приказа</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- Подключаем CSS для стиля -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <!-- Подключаем jQuery и jQuery UI для автодополнения -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <link rel="stylesheet" href="https://code.jquery.com/ui/1.13.0/themes/smoothness/jquery-ui.css">
+    <script src="https://code.jquery.com/ui/1.13.0/jquery-ui.min.js"></script>
+    <style>
+        body {
+            background-color: #aaa;
+            margin: 20px;
+        }
+        .ui-autocomplete {
+            max-height: 200px;
+            overflow-y: auto;
+            overflow-x: hidden;
+        }
+        .ui-menu-item-wrapper.ui-state-active {
+            background-color: #b3e5fc; /* Светло-голубой цвет */
+        }
+        .sidebar {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 500px;
+            height: 100%;
+            background-color: #bbb;
+            padding: 20px;
+            overflow-y: auto;
+        }
+        .content {
+            margin-right: 520px;
+        }
+        .content .form-group {
+            font-size: 20px;
+        }
+    </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Левая панель со списком приказов -->
-        <div class="leftbar">
-            <h3>Список приказов</h3>
-            <ul id="ordersList">
-                <!-- Приказы будут загружены здесь -->
-            </ul>
-        </div>
-
-        <!-- Правая панель со списком всех ФИО -->
-        <div class="rightbar">
-            <h3>Список ФИО</h3>
-            <button onclick="loadFIOList('ASC')">По возрастанию</button>
-            <button onclick="loadFIOList('DESC')">По убыванию</button>
-            <ul id="fioList">
-                <!-- Список всех ФИО из базы -->
-            </ul>
-        </div>
-
-
-        <!-- Основная форма для создания приказов -->
-        <div class="main-content">
+    <div class="content">
+        <div class="container">
             <h1>Создание приказа</h1>
-
-            <!-- Форма для загрузки шаблона -->
-            <form id="templateForm" enctype="multipart/form-data">
-                <label for="templateFile">Загрузить шаблон:</label>
-                <input type="file" id="templateFile" name="templateFile">
-                <button type="submit">Загрузить шаблон</button>
-            </form>
-
-            <form id="orderForm">
-                <div id="dynamicTemplate">
-                    <!-- Сюда будут динамически загружаться поля на основе шаблона -->
+            <form method="post">
+                <div class="form-group">
+                    <label for="order_number">Номер приказа: 7-</label>
+                    <input type="text" class="form-control" id="order_number" name="order_number" required placeholder="Пример: 101">
                 </div>
-                <button type="submit">Сохранить приказ</button>
-            </form>
+                <div class="form-group">
+                    <label for="order_date">Дата приказа:</label>
+                    <input type="text" class="form-control" id="order_date" name="order_date" required placeholder="Пример: 10.04.2024">
+                </div>
+                <div class="form-group">
+                    <label for="employees_input">Работники (начните вводить ФИО, разделяйте запятыми):</label>
+                    <input type="text" class="form-control" id="employees_input" name="employees_input" required placeholder="Пример: Иванов И.И., Сидоров А.А.">
+                </div>
+                <div class="form-group">
+                    <label for="job_date">Дата 2:</label>
+                    <input type="text" class="form-control" id="job_date" name="job_date" required placeholder="Пример: 19 и 20 мая 2024 | в ночь с 03 на 04 мая 2024">
+                </div>
+                <button type="submit" class="btn btn-primary">Создать приказ</button>
 
-            <!-- Кнопка для формирования общего документа -->
-            <button id="generateDocumentBtn">Сформировать общий документ</button>
-            <pre id="documentContent"></pre>
+            </form>
         </div>
     </div>
+    <div class="sidebar">
+        <h4>Навигация</h4>
+        <ul class="nav flex-column">
+            <li class="nav-item">
+                <a class="btn btn-primary" href="/orders_list">Приказы</a>
+            </li>
+        </ul>
+        <h4>Список ФИО</h4>
+        <ul class="list-group">
+            {% for fio in fios %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                {{ fio }}
+                <div>
+                    <a href="/edit_client/{{ clients[loop.index0].user_id }}" class="btn btn-sm btn-secondary">Изм.</a>
+                    <a href="/delete_client/{{ clients[loop.index0].user_id }}" class="btn btn-sm btn-danger">Уд.</a>
+                </div>
+            </li>
+            {% endfor %}
+        </ul>
+        <br>
+        <a href="/add_client" class="btn btn-primary btn-block">Добавить ФИО</a>
+    </div>
 
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <script>
+        $(function() {
+            var fios = [
+                {% for fio in fios %}
+                    "{{ fio }}",
+                {% endfor %}
+            ];
+
+            function split(val) {
+                return val.split(/,\s*/);
+            }
+
+            function extractLast(term) {
+                return split(term).pop();
+            }
+
+            $("#employees_input")
+                // Предотвращаем переход по табу при выборе из списка
+                .on("keydown", function(event) {
+                    if (event.keyCode === $.ui.keyCode.TAB &&
+                        $(this).autocomplete("instance").menu.active) {
+                        event.preventDefault();
+                    }
+                })
+                .autocomplete({
+                    minLength: 1,
+                    source: function(request, response) {
+                        // Предлагаем варианты из списка ФИО
+                        response($.ui.autocomplete.filter(
+                            fios, extractLast(request.term)
+                        ));
+                    },
+                    focus: function() {
+                        // Предотвращаем вставку значения при фокусе
+                        return false;
+                    },
+                    select: function(event, ui) {
+                        var terms = split(this.value);
+                        // Удаляем текущий ввод
+                        terms.pop();
+                        // Добавляем выбранный элемент
+                        terms.push(ui.item.value);
+                        // Добавляем запятую и пробел
+                        terms.push("");
+                        this.value = terms.join(", ");
+                        return false;
+                    }
+                });
+        });
+    </script>
 </body>
 </html>
